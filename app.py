@@ -1007,32 +1007,6 @@ def perform_qc_checks(df, child_df=None):
                     'Row Index': idx
                 })
         
-        # Check Q95 (swallowed in presence) AND Q102 = 0 minutes
-        if q95_col and q102_col:
-            for idx_child, child_row in child_df.iterrows():
-                submission_uuid = child_row.get('_submission__uuid', 'N/A')
-                # Find matching parent record
-                if uuid_col and submission_uuid != 'N/A':
-                    parent_row = df[df[uuid_col] == submission_uuid]
-                    if not parent_row.empty:
-                        q102_val = pd.to_numeric(parent_row.iloc[0].get(q102_col, -1), errors='coerce')
-                        q95_val = str(child_row.get(q95_col, '')).strip()
-                        
-                        # Check if Q95 is Yes and Q102 is 0 (or NaN treated as 0)
-                        if 'yes' in q95_val.lower() and (q102_val == 0 or pd.isna(q102_val) or q102_val == 0.0):
-                            parent_info = parent_lookup.get(submission_uuid, {'LGA': 'N/A', 'Ward': 'N/A', 'Community': 'N/A'})
-                            qc_issues.append({
-                                'LGA': parent_info['LGA'],
-                                'Ward': parent_info['Ward'],
-                                'Community': parent_info['Community'],
-                                'Unique HH ID': parent_info.get('Unique HH ID', 'N/A'),
-                                'Enumerator': parent_info.get('Enumerator', 'N/A'),
-                                'Validation Status': parent_info.get('Validation Status', 'N/A'),
-                                'Issue Type': 'Q95 Yes & Q102 = 0 minutes',
-                                'Description': f'Child {child_row.get("child_idd", "N/A")} swallowed in presence but CDD time = 0 min (unique_code2: {child_row.get("unique_code2", "N/A")})',
-                                'Row Index': idx_child
-                            })
-        
         # Check Q95 (swallowed in presence) AND Q102 >= 100 minutes
         if q95_col and q102_col:
             for idx_child, child_row in child_df.iterrows():
@@ -1223,7 +1197,9 @@ def login_page():
             - Username: `Admin`
             
             **LGA Users (use lowercase):**
-            - `ingawa`, `kankara`, `kankia`, `mani`, `musawa`, `rimi`
+            - `bade`, `fika`, `fune`, `gujba`, `gulani`, `nguru`
+            
+
             
             """)
         
