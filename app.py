@@ -29,7 +29,6 @@ LGA_CREDENTIALS = {
     "rimi": "Rimi",
 }
 
-
 KOBO_DATA_URL = "https://kf.kobotoolbox.org/api/v2/assets/aAmQuJy6no2vnBwpLMhEfi/export-settings/estqKb5ndVV5LwnAsVBxELr/data.xlsx"
 
 # ---------------- COMMUNITY MAPPING DATA ----------------
@@ -1030,6 +1029,32 @@ def perform_qc_checks(df, child_df=None):
                     'Row Index': idx
                 })
         
+        # Check Q95 (swallowed in presence) AND Q102 = 0 minutes
+        if q95_col and q102_col:
+            for idx_child, child_row in child_df.iterrows():
+                submission_uuid = child_row.get('_submission__uuid', 'N/A')
+                # Find matching parent record
+                if uuid_col and submission_uuid != 'N/A':
+                    parent_row = df[df[uuid_col] == submission_uuid]
+                    if not parent_row.empty:
+                        q102_val = pd.to_numeric(parent_row.iloc[0].get(q102_col, -1), errors='coerce')
+                        q95_val = str(child_row.get(q95_col, '')).strip()
+                        
+                        # Check if Q95 is Yes and Q102 is 0 (or NaN treated as 0)
+                        if 'yes' in q95_val.lower() and (q102_val == 0 or pd.isna(q102_val) or q102_val == 0.0):
+                            parent_info = parent_lookup.get(submission_uuid, {'LGA': 'N/A', 'Ward': 'N/A', 'Community': 'N/A'})
+                            qc_issues.append({
+                                'LGA': parent_info['LGA'],
+                                'Ward': parent_info['Ward'],
+                                'Community': parent_info['Community'],
+                                'Unique HH ID': parent_info.get('Unique HH ID', 'N/A'),
+                                'Enumerator': parent_info.get('Enumerator', 'N/A'),
+                                'Validation Status': parent_info.get('Validation Status', 'N/A'),
+                                'Issue Type': 'Q95 Yes & Q102 = 0 minutes',
+                                'Description': f'Child {child_row.get("child_idd", "N/A")} swallowed in presence but CDD time = 0 min (unique_code2: {child_row.get("unique_code2", "N/A")})',
+                                'Row Index': idx_child
+                            })
+        
         # Check Q95 (swallowed in presence) AND Q102 >= 100 minutes
         if q95_col and q102_col:
             for idx_child, child_row in child_df.iterrows():
@@ -1055,7 +1080,15 @@ def perform_qc_checks(df, child_df=None):
                                 'Row Index': idx_child
                             })
         
-        # NEW QC Check: Q90 = Yes AND No Vaccination Card (AZM offered but no Vcard)
+        # NEW QC Check: Q86 = Yes AND Q90 = No (Visited home but didn't offer child AZM)
+        q86_col = find_column(df, [
+            'Q86. Did someone visit your home between 13th December 2025 and 22nd December 2025 to offer your child or children any drug from a bottle?',
+            'Q86. Did someone visit your home between 6th December 2025 and 11th December 2025 to offer your child or children any drug from a bottle?',
+            'Q86. Did someone visit your home between 19th July 2025 and 25th July 2025 to offer your child or children any drug from a bottle?',
+            'Q86',
+            'home_visit',
+            'visited_home'
+        ])
         q90_col = find_column(child_df, [
             'Q90. Did someone offer child ${child_idd} azithromycin between 13th and 22nd of December 2025?',
             'Q90. Did someone offer child ${child_idd} azithromycin between 6th and 11th of December 2025?',
@@ -1064,46 +1097,57 @@ def perform_qc_checks(df, child_df=None):
             'offered_azm',
             'offer_azithromycin'
         ])
-        vcard_col = find_column(child_df, [
-            'Do you have a vaccination card?',
-            'vaccination_card',
-            'vcard',
-            'have_vcard'
-        ])
-        vcard_missing_col = find_column(child_df, [
-            'Why is the card missing?',
-            'card_missing_reason',
-            'vcard_missing',
-            'why_card_missing'
-        ])
         
-        if q90_col and vcard_col:
+        if q86_col and q90_col:
             for idx_child, child_row in child_df.iterrows():
                 submission_uuid = child_row.get('_submission__uuid', 'N/A')
-                q90_val = str(child_row.get(q90_col, '')).strip()
-                vcard_val = str(child_row.get(vcard_col, '')).strip()
-                
-                # Check if Q90 is Yes and vaccination card is No
-                if 'yes' in q90_val.lower() and 'no' in vcard_val.lower():
-                    parent_info = parent_lookup.get(submission_uuid, {'LGA': 'N/A', 'Ward': 'N/A', 'Community': 'N/A'})
-                    
-                    # Get the reason why card is missing
-                    card_missing_reason = 'N/A'
-                    if vcard_missing_col:
-                        card_missing_reason = str(child_row.get(vcard_missing_col, 'N/A')).strip()
-                    
-                    qc_issues.append({
-                        'LGA': parent_info['LGA'],
-                        'Ward': parent_info['Ward'],
-                        'Community': parent_info['Community'],
-                        'Unique HH ID': parent_info.get('Unique HH ID', 'N/A'),
-                        'Enumerator': parent_info.get('Enumerator', 'N/A'),
-                        'Validation Status': parent_info.get('Validation Status', 'N/A'),
-                        'Issue Type': 'AZM offered but no Vcard',
-                        'Description': f'Child {child_row.get("child_idd", "N/A")} was offered AZM (Q90=Yes) but has no vaccination card (unique_code2: {child_row.get("unique_code2", "N/A")})',
-                        'Why is the card missing?': card_missing_reason,
-                        'Row Index': idx_child
-                    })
+                # Find matching parent record
+                if uuid_col and submission_uuid != 'N/A':
+                    parent_row = df[df[uuid_col] == submission_uuid]
+                    if not parent_row.empty:
+                        q86_val = str(parent_row.iloc[0].get(q86_col, '')).strip()
+                        q90_val = str(child_row.get(q90_col, '')).strip()
+                        
+                        # Check if Q86 is Yes and Q90 is No
+                        if 'yes' in q86_val.lower() and 'no' in q90_val.lower():
+                            parent_info = parent_lookup.get(submission_uuid, {'LGA': 'N/A', 'Ward': 'N/A', 'Community': 'N/A'})
+                            qc_issues.append({
+                                'LGA': parent_info['LGA'],
+                                'Ward': parent_info['Ward'],
+                                'Community': parent_info['Community'],
+                                'Unique HH ID': parent_info.get('Unique HH ID', 'N/A'),
+                                'Enumerator': parent_info.get('Enumerator', 'N/A'),
+                                'Validation Status': parent_info.get('Validation Status', 'N/A'),
+                                'Issue Type': 'Q86 Yes & Q90 No',
+                                'Description': f'Home visited (Q86=Yes) but child {child_row.get("child_idd", "N/A")} not offered AZM (Q90=No) (unique_code2: {child_row.get("unique_code2", "N/A")})',
+                                'Row Index': idx_child
+                            })
+        
+        # NEW QC Check: Q102 = 0 AND Q94 = Yes (CDD spent 0 minutes but child swallowed AZM)
+        if q102_col and q94_col:
+            for idx_child, child_row in child_df.iterrows():
+                submission_uuid = child_row.get('_submission__uuid', 'N/A')
+                # Find matching parent record
+                if uuid_col and submission_uuid != 'N/A':
+                    parent_row = df[df[uuid_col] == submission_uuid]
+                    if not parent_row.empty:
+                        q102_val = pd.to_numeric(parent_row.iloc[0].get(q102_col, -1), errors='coerce')
+                        q94_val = str(child_row.get(q94_col, '')).strip()
+                        
+                        # Check if Q102 is 0 (or NaN) and Q94 is Yes
+                        if 'yes' in q94_val.lower() and (q102_val == 0 or pd.isna(q102_val) or q102_val == 0.0):
+                            parent_info = parent_lookup.get(submission_uuid, {'LGA': 'N/A', 'Ward': 'N/A', 'Community': 'N/A'})
+                            qc_issues.append({
+                                'LGA': parent_info['LGA'],
+                                'Ward': parent_info['Ward'],
+                                'Community': parent_info['Community'],
+                                'Unique HH ID': parent_info.get('Unique HH ID', 'N/A'),
+                                'Enumerator': parent_info.get('Enumerator', 'N/A'),
+                                'Validation Status': parent_info.get('Validation Status', 'N/A'),
+                                'Issue Type': 'Q102 = 0 & Q94 Yes',
+                                'Description': f'CDD spent 0 minutes (Q102=0) but child {child_row.get("child_idd", "N/A")} swallowed AZM (Q94=Yes) (unique_code2: {child_row.get("unique_code2", "N/A")})',
+                                'Row Index': idx_child
+                            })
     
     # QC Check 6: Duplicate unique_code (HH Duplicate)
     # Exclude records with validation status "Not Approved" from duplicate checks
@@ -1233,9 +1277,7 @@ def login_page():
             - Username: `Admin`
             
             **LGA Users (use lowercase):**
-            - `bade`, `fika`, `fune`, `gujba`, `gulani`, `nguru`
-            
-
+            - 'bade', 'fika','fune', 'gujba', 'gulani','nguru'
             
             """)
         
