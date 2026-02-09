@@ -1070,6 +1070,12 @@ def perform_qc_checks(df, child_df=None):
             'vcard',
             'have_vcard'
         ])
+        vcard_missing_col = find_column(child_df, [
+            'Why is the card missing?',
+            'card_missing_reason',
+            'vcard_missing',
+            'why_card_missing'
+        ])
         
         if q90_col and vcard_col:
             for idx_child, child_row in child_df.iterrows():
@@ -1080,6 +1086,12 @@ def perform_qc_checks(df, child_df=None):
                 # Check if Q90 is Yes and vaccination card is No
                 if 'yes' in q90_val.lower() and 'no' in vcard_val.lower():
                     parent_info = parent_lookup.get(submission_uuid, {'LGA': 'N/A', 'Ward': 'N/A', 'Community': 'N/A'})
+                    
+                    # Get the reason why card is missing
+                    card_missing_reason = 'N/A'
+                    if vcard_missing_col:
+                        card_missing_reason = str(child_row.get(vcard_missing_col, 'N/A')).strip()
+                    
                     qc_issues.append({
                         'LGA': parent_info['LGA'],
                         'Ward': parent_info['Ward'],
@@ -1089,6 +1101,7 @@ def perform_qc_checks(df, child_df=None):
                         'Validation Status': parent_info.get('Validation Status', 'N/A'),
                         'Issue Type': 'AZM offered but no Vcard',
                         'Description': f'Child {child_row.get("child_idd", "N/A")} was offered AZM (Q90=Yes) but has no vaccination card (unique_code2: {child_row.get("unique_code2", "N/A")})',
+                        'Why is the card missing?': card_missing_reason,
                         'Row Index': idx_child
                     })
     
@@ -1681,7 +1694,8 @@ def run_dashboard():
                 "Enumerator": st.column_config.TextColumn("Enumerator", width="medium"),
                 "Validation Status": st.column_config.TextColumn("Validation Status", width="small"),
                 "Issue Type": st.column_config.TextColumn("Issue Type", width="medium"),
-                "Description": st.column_config.TextColumn("Description", width="large")
+                "Description": st.column_config.TextColumn("Description", width="large"),
+                "Why is the card missing?": st.column_config.TextColumn("Why is the card missing?", width="medium")
             }
         )
         
