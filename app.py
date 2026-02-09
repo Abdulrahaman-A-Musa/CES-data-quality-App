@@ -67,8 +67,23 @@ COMMUNITY_DF.columns = COMMUNITY_DF.columns.str.strip()
 COMMUNITY_CODE_TO_NAME = dict(zip(COMMUNITY_DF['community_name'].astype(str), COMMUNITY_DF['Q4. Community Name']))
 COMMUNITY_NAME_TO_CODE = dict(zip(COMMUNITY_DF['Q4. Community Name'], COMMUNITY_DF['community_name'].astype(str)))
 COMMUNITY_PLANNED_HH = dict(zip(COMMUNITY_DF['community_name'].astype(str), COMMUNITY_DF['Planned HH']))
-# Also create mapping by name for flexibility
-COMMUNITY_NAME_TO_PLANNED_HH = dict(zip(COMMUNITY_DF['Q4. Community Name'], COMMUNITY_DF['Planned HH']))
+
+# Helper function to clean community codes and convert to names
+def get_community_name(code):
+    """Convert community code to name, handling various formats"""
+    if pd.isna(code):
+        return 'N/A'
+    # Convert to string and remove decimal points
+    clean_code = str(code).replace('.0', '').strip()
+    return COMMUNITY_CODE_TO_NAME.get(clean_code, clean_code)
+
+def get_planned_hh(code):
+    """Get planned HH for a community code, handling various formats"""
+    if pd.isna(code):
+        return 0
+    # Convert to string and remove decimal points
+    clean_code = str(code).replace('.0', '').strip()
+    return COMMUNITY_PLANNED_HH.get(clean_code, 0)
 
 # ---------------- CUSTOM CSS STYLING ----------------
 st.markdown("""
@@ -540,7 +555,7 @@ def preprocess_data(sheets_dict):
     # Process child_info sheet
     if not sheets_dict['child_info'].empty:
         df_child_info = sheets_dict['child_info'].copy()
-        # Convert age to numeric - check for multiple date formats
+        # Convert age to numeric - check for both old and new date formats
         age_col_variants = [
             'Age of child ${child_id} as at when MDA was done (13th to 22nd December 2025)',
             'Age of child ${child_id} as at when MDA was done (6th to 11th December 2025)',
@@ -558,7 +573,7 @@ def preprocess_data(sheets_dict):
     # Process child_infoo sheet (children <5 years)
     if not sheets_dict['child_infoo'].empty:
         df_child_infoo = sheets_dict['child_infoo'].copy()
-        # Convert age column - check for multiple date formats
+        # Convert age column - check for both old and new date formats
         age_col_variants = [
             'Q88. Child name and age ${child_idd} as at when MDA was done (13th to 22nd December 2025)',
             'Q88. Child name and age ${child_idd} as at when MDA was done (6th to 11th December 2025)',
@@ -726,7 +741,7 @@ def create_community_coverage_table(df):
         )
         
         coverage['Actual_HH'] = coverage['Actual_HH'].fillna(0).astype(int)
-        coverage['Coverage_%'] = ((coverage['Actual_HH'] / coverage['Planned HH']) * 100).round(0).astype(int)
+        coverage['Coverage_%'] = ((coverage['Actual_HH'] / coverage['Planned HH']) * 100).round(1)
         coverage['Status'] = coverage.apply(
             lambda row: '✅ Complete' if row['Actual_HH'] >= row['Planned HH'] 
             else '⚠️ Partial' if row['Actual_HH'] > 0 
@@ -892,7 +907,7 @@ def perform_qc_checks(df, child_df=None):
             parent_lookup[row[uuid_col]] = {
                 'LGA': row.get(lga_col, 'N/A') if lga_col else 'N/A',
                 'Ward': row.get(ward_col, 'N/A') if ward_col else 'N/A',
-                'Community': row.get(community_col, 'N/A') if community_col else 'N/A',
+                'Community': get_community_name(row.get(community_col, 'N/A')) if community_col else 'N/A',
                 'Unique HH ID': row.get(unique_code_col, 'N/A') if unique_code_col else 'N/A',
                 'Validation Status': row.get(validation_status_col, 'N/A') if validation_status_col else 'N/A',
                 'Enumerator': row.get(enumerator_col, 'N/A') if enumerator_col else 'N/A'
@@ -914,7 +929,7 @@ def perform_qc_checks(df, child_df=None):
             qc_issues.append({
                 'LGA': row.get(lga_col, 'N/A') if lga_col else 'N/A',
                 'Ward': row.get(ward_col, 'N/A') if ward_col else 'N/A',
-                'Community': row.get(community_col, 'N/A') if community_col else 'N/A',
+                'Community': get_community_name(row.get(community_col, 'N/A')) if community_col else 'N/A',
                 'Unique HH ID': row.get(unique_code_col, 'N/A') if unique_code_col else 'N/A',
                 'Enumerator': row.get(enumerator_col, 'N/A') if enumerator_col else 'N/A',
                 'Validation Status': row.get(validation_status_col, 'N/A') if validation_status_col else 'N/A',
@@ -936,7 +951,7 @@ def perform_qc_checks(df, child_df=None):
             qc_issues.append({
                 'LGA': row.get(lga_col, 'N/A') if lga_col else 'N/A',
                 'Ward': row.get(ward_col, 'N/A') if ward_col else 'N/A',
-                'Community': row.get(community_col, 'N/A') if community_col else 'N/A',
+                'Community': get_community_name(row.get(community_col, 'N/A')) if community_col else 'N/A',
                 'Unique HH ID': row.get(unique_code_col, 'N/A') if unique_code_col else 'N/A',
                 'Enumerator': row.get(enumerator_col, 'N/A') if enumerator_col else 'N/A',
                 'Validation Status': row.get(validation_status_col, 'N/A') if validation_status_col else 'N/A',
@@ -953,7 +968,7 @@ def perform_qc_checks(df, child_df=None):
             qc_issues.append({
                 'LGA': row.get(lga_col, 'N/A') if lga_col else 'N/A',
                 'Ward': row.get(ward_col, 'N/A') if ward_col else 'N/A',
-                'Community': row.get(community_col, 'N/A') if community_col else 'N/A',
+                'Community': get_community_name(row.get(community_col, 'N/A')) if community_col else 'N/A',
                 'Unique HH ID': row.get(unique_code_col, 'N/A') if unique_code_col else 'N/A',
                 'Enumerator': row.get(enumerator_col, 'N/A') if enumerator_col else 'N/A',
                 'Validation Status': row.get(validation_status_col, 'N/A') if validation_status_col else 'N/A',
@@ -970,7 +985,7 @@ def perform_qc_checks(df, child_df=None):
             qc_issues.append({
                 'LGA': row.get(lga_col, 'N/A') if lga_col else 'N/A',
                 'Ward': row.get(ward_col, 'N/A') if ward_col else 'N/A',
-                'Community': row.get(community_col, 'N/A') if community_col else 'N/A',
+                'Community': get_community_name(row.get(community_col, 'N/A')) if community_col else 'N/A',
                 'Unique HH ID': row.get(unique_code_col, 'N/A') if unique_code_col else 'N/A',
                 'Enumerator': row.get(enumerator_col, 'N/A') if enumerator_col else 'N/A',
                 'Validation Status': row.get(validation_status_col, 'N/A') if validation_status_col else 'N/A',
@@ -994,21 +1009,6 @@ def perform_qc_checks(df, child_df=None):
             'Q94',
             'child_swallow_azm'
         ])
-        q95_col = find_column(child_df, [
-            'Q95. Did child ${child_idd} swallow the AZM in the presence of the person who offered it?',
-            'Q95',
-            'swallow_in_presence'
-        ])
-        q102_col = find_column(df, [
-            'Q102. About how many minutes did the CDD spend in your household?',
-            'Q102',
-            'cdd_time_minutes',
-            'cdd_time'
-        ])
-        
-        # Debug: Print if columns are found (can be removed later)
-        # st.write(f"DEBUG - Q95 column found: {q95_col}")
-        # st.write(f"DEBUG - Q102 column found: {q102_col}")
         
         # Check Q94 (child swallowed AZM) AND child age >59 months
         if age_col and q94_col:
@@ -1031,126 +1031,6 @@ def perform_qc_checks(df, child_df=None):
                     'Row Index': idx
                 })
         
-        # Check Q95 (swallowed in presence) AND Q102 = 0 minutes
-        if q95_col and q102_col:
-            for idx_child, child_row in child_df.iterrows():
-                submission_uuid = child_row.get('_submission__uuid', 'N/A')
-                # Find matching parent record
-                if uuid_col and submission_uuid != 'N/A':
-                    parent_row = df[df[uuid_col] == submission_uuid]
-                    if not parent_row.empty:
-                        q102_val = pd.to_numeric(parent_row.iloc[0].get(q102_col, -1), errors='coerce')
-                        q95_val = str(child_row.get(q95_col, '')).strip()
-                        
-                        # Check if Q95 is Yes and Q102 is 0 (or NaN treated as 0)
-                        if 'yes' in q95_val.lower() and (q102_val == 0 or pd.isna(q102_val) or q102_val == 0.0):
-                            parent_info = parent_lookup.get(submission_uuid, {'LGA': 'N/A', 'Ward': 'N/A', 'Community': 'N/A'})
-                            qc_issues.append({
-                                'LGA': parent_info['LGA'],
-                                'Ward': parent_info['Ward'],
-                                'Community': parent_info['Community'],
-                                'Unique HH ID': parent_info.get('Unique HH ID', 'N/A'),
-                                'Enumerator': parent_info.get('Enumerator', 'N/A'),
-                                'Validation Status': parent_info.get('Validation Status', 'N/A'),
-                                'Issue Type': 'Q95 Yes & Q102 = 0 minutes',
-                                'Description': f'Child {child_row.get("child_idd", "N/A")} swallowed in presence but CDD time = 0 min (unique_code2: {child_row.get("unique_code2", "N/A")})',
-                                'Row Index': idx_child
-                            })
-        
-        # Check Q95 (swallowed in presence) AND Q102 >= 100 minutes
-        if q95_col and q102_col:
-            for idx_child, child_row in child_df.iterrows():
-                submission_uuid = child_row.get('_submission__uuid', 'N/A')
-                # Find matching parent record
-                if uuid_col and submission_uuid != 'N/A':
-                    parent_row = df[df[uuid_col] == submission_uuid]
-                    if not parent_row.empty:
-                        q102_val = pd.to_numeric(parent_row.iloc[0].get(q102_col, -1), errors='coerce')
-                        q95_val = str(child_row.get(q95_col, '')).strip()
-                        
-                        if 'yes' in q95_val.lower() and q102_val >= 100:
-                            parent_info = parent_lookup.get(submission_uuid, {'LGA': 'N/A', 'Ward': 'N/A', 'Community': 'N/A'})
-                            qc_issues.append({
-                                'LGA': parent_info['LGA'],
-                                'Ward': parent_info['Ward'],
-                                'Community': parent_info['Community'],
-                                'Unique HH ID': parent_info.get('Unique HH ID', 'N/A'),
-                                'Enumerator': parent_info.get('Enumerator', 'N/A'),
-                                'Validation Status': parent_info.get('Validation Status', 'N/A'),
-                                'Issue Type': 'Q95 Yes & Q102 >= 100 minutes',
-                                'Description': f'Child {child_row.get("child_idd", "N/A")} swallowed in presence but CDD time = {q102_val} min (>=100) (unique_code2: {child_row.get("unique_code2", "N/A")})',
-                                'Row Index': idx_child
-                            })
-        
-        # NEW QC Check: Q86 = Yes AND Q90 = No (Visited home but didn't offer child AZM)
-        q86_col = find_column(df, [
-            'Q86. Did someone visit your home between 13th December 2025 and 22nd December 2025 to offer your child or children any drug from a bottle?',
-            'Q86. Did someone visit your home between 6th December 2025 and 11th December 2025 to offer your child or children any drug from a bottle?',
-            'Q86. Did someone visit your home between 19th July 2025 and 25th July 2025 to offer your child or children any drug from a bottle?',
-            'Q86',
-            'home_visit',
-            'visited_home'
-        ])
-        q90_col = find_column(child_df, [
-            'Q90. Did someone offer child ${child_idd} azithromycin between 13th and 22nd of December 2025?',
-            'Q90. Did someone offer child ${child_idd} azithromycin between 6th and 11th of December 2025?',
-            'Q90. Did someone offer child ${child_idd} azithromycin between 19th and 25th of July 2025?',
-            'Q90',
-            'offered_azm',
-            'offer_azithromycin'
-        ])
-        
-        if q86_col and q90_col:
-            for idx_child, child_row in child_df.iterrows():
-                submission_uuid = child_row.get('_submission__uuid', 'N/A')
-                # Find matching parent record
-                if uuid_col and submission_uuid != 'N/A':
-                    parent_row = df[df[uuid_col] == submission_uuid]
-                    if not parent_row.empty:
-                        q86_val = str(parent_row.iloc[0].get(q86_col, '')).strip()
-                        q90_val = str(child_row.get(q90_col, '')).strip()
-                        
-                        # Check if Q86 is Yes and Q90 is No
-                        if 'yes' in q86_val.lower() and 'no' in q90_val.lower():
-                            parent_info = parent_lookup.get(submission_uuid, {'LGA': 'N/A', 'Ward': 'N/A', 'Community': 'N/A'})
-                            qc_issues.append({
-                                'LGA': parent_info['LGA'],
-                                'Ward': parent_info['Ward'],
-                                'Community': parent_info['Community'],
-                                'Unique HH ID': parent_info.get('Unique HH ID', 'N/A'),
-                                'Enumerator': parent_info.get('Enumerator', 'N/A'),
-                                'Validation Status': parent_info.get('Validation Status', 'N/A'),
-                                'Issue Type': 'Q86 Yes & Q90 No',
-                                'Description': f'Home visited (Q86=Yes) but child {child_row.get("child_idd", "N/A")} not offered AZM (Q90=No) (unique_code2: {child_row.get("unique_code2", "N/A")})',
-                                'Row Index': idx_child
-                            })
-        
-        # NEW QC Check: Q102 = 0 AND Q94 = Yes (CDD spent 0 minutes but child swallowed AZM)
-        if q102_col and q94_col:
-            for idx_child, child_row in child_df.iterrows():
-                submission_uuid = child_row.get('_submission__uuid', 'N/A')
-                # Find matching parent record
-                if uuid_col and submission_uuid != 'N/A':
-                    parent_row = df[df[uuid_col] == submission_uuid]
-                    if not parent_row.empty:
-                        q102_val = pd.to_numeric(parent_row.iloc[0].get(q102_col, -1), errors='coerce')
-                        q94_val = str(child_row.get(q94_col, '')).strip()
-                        
-                        # Check if Q102 is 0 (or NaN) and Q94 is Yes
-                        if 'yes' in q94_val.lower() and (q102_val == 0 or pd.isna(q102_val) or q102_val == 0.0):
-                            parent_info = parent_lookup.get(submission_uuid, {'LGA': 'N/A', 'Ward': 'N/A', 'Community': 'N/A'})
-                            qc_issues.append({
-                                'LGA': parent_info['LGA'],
-                                'Ward': parent_info['Ward'],
-                                'Community': parent_info['Community'],
-                                'Unique HH ID': parent_info.get('Unique HH ID', 'N/A'),
-                                'Enumerator': parent_info.get('Enumerator', 'N/A'),
-                                'Validation Status': parent_info.get('Validation Status', 'N/A'),
-                                'Issue Type': 'Q102 = 0 & Q94 Yes',
-                                'Description': f'CDD spent 0 minutes (Q102=0) but child {child_row.get("child_idd", "N/A")} swallowed AZM (Q94=Yes) (unique_code2: {child_row.get("unique_code2", "N/A")})',
-                                'Row Index': idx_child
-                            })
-    
     # QC Check 6: Duplicate unique_code (HH Duplicate)
     # Exclude records with validation status "Not Approved" from duplicate checks
     if unique_code_col:
@@ -1166,7 +1046,7 @@ def perform_qc_checks(df, child_df=None):
             qc_issues.append({
                 'LGA': row.get(lga_col, 'N/A') if lga_col else 'N/A',
                 'Ward': row.get(ward_col, 'N/A') if ward_col else 'N/A',
-                'Community': row.get(community_col, 'N/A') if community_col else 'N/A',
+                'Community': get_community_name(row.get(community_col, 'N/A')) if community_col else 'N/A',
                 'Unique HH ID': row.get(unique_code_col, 'N/A') if unique_code_col else 'N/A',
                 'Enumerator': row.get(enumerator_col, 'N/A') if enumerator_col else 'N/A',
                 'Validation Status': row.get(validation_status_col, 'N/A') if validation_status_col else 'N/A',
@@ -1221,7 +1101,7 @@ def perform_qc_checks(df, child_df=None):
                                 qc_issues.append({
                                     'LGA': row.get(lga_col, 'N/A') if lga_col else 'N/A',
                                     'Ward': row.get(ward_col, 'N/A') if ward_col else 'N/A',
-                                    'Community': row.get(community_col, 'N/A') if community_col else 'N/A',
+                                    'Community': get_community_name(row.get(community_col, 'N/A')) if community_col else 'N/A',
                                     'Unique HH ID': row.get(unique_code_col, 'N/A') if unique_code_col else 'N/A',
                                     'Enumerator': row.get(enumerator_col, 'N/A') if enumerator_col else 'N/A',
                                     'Validation Status': row.get(validation_status_col, 'N/A') if validation_status_col else 'N/A',
@@ -1279,7 +1159,7 @@ def login_page():
             - Username: `Admin`
             
             **LGA Users (use lowercase):**
-            - `bade`, `fika`, `fune`, `gujba`, `gulani`, `nguru`
+            - `ingawa`, `kankara`, `kankia`, `mani`, `musawa`, `rimi`
             
             """)
         
@@ -1566,27 +1446,11 @@ def run_dashboard():
                 
                 for community_code in ward_df[q4_col].unique():
                     if pd.notna(community_code):
-                        community_code_str = str(community_code)
+                        # Get community name from mapping (handles .0 decimals)
+                        community_name = get_community_name(community_code)
                         
-                        # Try to get community name from mapping (if data has codes)
-                        # If not found, assume the data already has the name
-                        if community_code_str in COMMUNITY_CODE_TO_NAME:
-                            # Data contains code, get the name
-                            community_name = COMMUNITY_CODE_TO_NAME[community_code_str]
-                            lookup_key = community_code_str
-                        elif community_code_str in COMMUNITY_NAME_TO_CODE:
-                            # Data contains name, use it directly
-                            community_name = community_code_str
-                            lookup_key = COMMUNITY_NAME_TO_CODE[community_code_str]
-                        else:
-                            # Unknown community, use as-is
-                            community_name = community_code_str
-                            lookup_key = community_code_str
-                        
-                        # Get planned HH (try by code first, then by name)
-                        planned_hh = COMMUNITY_PLANNED_HH.get(lookup_key, 0)
-                        if planned_hh == 0:
-                            planned_hh = COMMUNITY_NAME_TO_PLANNED_HH.get(community_name, 0)
+                        # Get planned HH (handles .0 decimals)
+                        planned_hh = get_planned_hh(community_code)
                         
                         # Count reached HH (excluding "Not Approved")
                         reached_hh = len(ward_df[ward_df[q4_col] == community_code])
@@ -1632,7 +1496,7 @@ def run_dashboard():
             with exp_col2:
                 st.metric("Total Reached HH", f"{total_reached:,}")
             with exp_col3:
-                st.metric("Overall Coverage", f"{overall_coverage:.1f}%")
+                st.metric("Overall Coverage", f"{int(round(overall_coverage, 0))}%")
             with exp_col4:
                 st.metric("Communities @ Target", f"{communities_met_target}/{len(explorer_df)}")
             
@@ -1784,6 +1648,7 @@ def run_dashboard():
                     'Q17', 
                     'age', 
                     'respondent_age',
+                    'Age of child ${child_id} as at when MDA was done (13th to 22nd December 2025)',
                     'Age of child ${child_id} as at when MDA was done (6th to 11th December 2025)',
                     'Age of child ${child_id} as at when MDA was done (24th to 29th July 2025)',
                     'Age of child ${child_id} as at when MDA was done (19th to 25th July 2025)',
@@ -1822,7 +1687,7 @@ def run_dashboard():
             </div>
             <div style='border-left: 2px solid #dee2e6; height: 30px;'></div>
             <div style='font-size: 0.9rem; color: #6c757d;'>
-                SARMAAN II Coverage Evaluation Dashboard - Katsina State
+                SARMAAN II Coverage Evaluation Dashboard - Yobe State
             </div>
         </div>
         <div style='margin-top: 1rem; font-size: 0.85rem; color: #868e96;'>
