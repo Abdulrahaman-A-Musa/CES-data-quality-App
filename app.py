@@ -30,7 +30,7 @@ LGA_CREDENTIALS = {
 }
 
 
-KOBO_DATA_URL = "https://kf.kobotoolbox.org/api/v2/assets/adx9T4qgBgomiZ54fzxkLp/export-settings/es8s7iAytMM9ec7wCbkFGtC/data.xlsx"
+KOBO_DATA_URL = "https://kf.kobotoolbox.org/api/v2/assets/aAmQuJy6no2vnBwpLMhEfi/export-settings/estqKb5ndVV5LwnAsVBxELr/data.xlsx"
 
 # ---------------- COMMUNITY MAPPING DATA ----------------
 COMMUNITY_MAPPING_DATA = """Q2. Local Government Area	Q3.Ward	Q4. Community Name	community_name	Planned HH
