@@ -1494,59 +1494,6 @@ def run_dashboard():
             icon = "⚠️" if issue['type'] == 'warning' else "❌"
             st.markdown(f'<div class="alert-box {alert_class}"><strong>{icon} {issue["message"]}</strong></div>', unsafe_allow_html=True)
     
-    # Community Mapping Section
-    st.markdown('<div class="section-header">📍 Community Mapping Data</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div style='background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); 
-                padding: 1rem; border-radius: 10px; margin-bottom: 1rem; border-left: 4px solid #1976d2;'>
-        <p style='margin: 0; color: #0d47a1; font-weight: 500;'>
-            📊 Target communities and planned household distribution across 6 LGAs in Yobe State
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Display community mapping statistics
-    try:
-        map_col1, map_col2, map_col3, map_col4 = st.columns(4)
-        
-        # Get the correct column names from COMMUNITY_DF
-        lga_mapping_col = [col for col in COMMUNITY_DF.columns if 'Local Government' in col or col == 'Q2. Local Government Area'][0]
-        ward_mapping_col = [col for col in COMMUNITY_DF.columns if 'Ward' in col and 'Q3' in col][0]
-        community_mapping_col = [col for col in COMMUNITY_DF.columns if 'Community Name' in col or col == 'Q4. Community Name'][0]
-        code_mapping_col = 'community_name'
-        planned_hh_col = 'Planned HH'
-        
-        with map_col1:
-            st.metric("Total LGAs", COMMUNITY_DF[lga_mapping_col].nunique())
-        with map_col2:
-            st.metric("Total Wards", COMMUNITY_DF[ward_mapping_col].nunique())
-        with map_col3:
-            st.metric("Total Communities", len(COMMUNITY_DF))
-        with map_col4:
-            st.metric("Total Planned HH", COMMUNITY_DF[planned_hh_col].sum())
-        
-        # Display the community mapping table with styling
-        st.dataframe(
-            COMMUNITY_DF,
-            use_container_width=True,
-            height=400,
-            hide_index=True,
-            column_config={
-                lga_mapping_col: st.column_config.TextColumn("LGA", width="medium"),
-                ward_mapping_col: st.column_config.TextColumn("Ward", width="medium"),
-                community_mapping_col: st.column_config.TextColumn("Community Name", width="large"),
-                code_mapping_col: st.column_config.TextColumn("Community Code", width="small"),
-                planned_hh_col: st.column_config.NumberColumn("Planned HH", width="small", format="%d")
-            }
-        )
-    except Exception as e:
-        st.error(f"❌ Error displaying community mapping: {e}")
-        st.info(f"Available columns: {', '.join(COMMUNITY_DF.columns.tolist())}")
-        # Show the dataframe anyway without special formatting
-        st.dataframe(COMMUNITY_DF, use_container_width=True, height=400)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
     # Data Explorer - Advanced Table with Planned vs Reached HH (MOVED FIRST)
     st.markdown('<div class="section-header">📋 Coverage Summary: Planned vs Reached Households</div>', unsafe_allow_html=True)
     
@@ -1747,8 +1694,7 @@ def run_dashboard():
                 "Enumerator": st.column_config.TextColumn("Enumerator", width="medium"),
                 "Validation Status": st.column_config.TextColumn("Validation Status", width="small"),
                 "Issue Type": st.column_config.TextColumn("Issue Type", width="medium"),
-                "Description": st.column_config.TextColumn("Description", width="large"),
-                "Why is the card missing?": st.column_config.TextColumn("Why is the card missing?", width="medium")
+                "Description": st.column_config.TextColumn("Description", width="large")
             }
         )
         
