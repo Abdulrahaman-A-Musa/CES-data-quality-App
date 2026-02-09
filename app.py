@@ -1506,30 +1506,44 @@ def run_dashboard():
     """, unsafe_allow_html=True)
     
     # Display community mapping statistics
-    map_col1, map_col2, map_col3, map_col4 = st.columns(4)
-    with map_col1:
-        st.metric("Total LGAs", COMMUNITY_DF['Q2. Local Government Area'].nunique())
-    with map_col2:
-        st.metric("Total Wards", COMMUNITY_DF['Q3.Ward'].nunique())
-    with map_col3:
-        st.metric("Total Communities", len(COMMUNITY_DF))
-    with map_col4:
-        st.metric("Total Planned HH", COMMUNITY_DF['Planned HH'].sum())
-    
-    # Display the community mapping table with styling
-    st.dataframe(
-        COMMUNITY_DF,
-        use_container_width=True,
-        height=400,
-        hide_index=True,
-        column_config={
-            "Q2. Local Government Area": st.column_config.TextColumn("LGA", width="medium"),
-            "Q3.Ward": st.column_config.TextColumn("Ward", width="medium"),
-            "Q4. Community Name": st.column_config.TextColumn("Community Name", width="large"),
-            "community_name": st.column_config.TextColumn("Community Code", width="small"),
-            "Planned HH": st.column_config.NumberColumn("Planned HH", width="small", format="%d")
-        }
-    )
+    try:
+        map_col1, map_col2, map_col3, map_col4 = st.columns(4)
+        
+        # Get the correct column names from COMMUNITY_DF
+        lga_mapping_col = [col for col in COMMUNITY_DF.columns if 'Local Government' in col or col == 'Q2. Local Government Area'][0]
+        ward_mapping_col = [col for col in COMMUNITY_DF.columns if 'Ward' in col and 'Q3' in col][0]
+        community_mapping_col = [col for col in COMMUNITY_DF.columns if 'Community Name' in col or col == 'Q4. Community Name'][0]
+        code_mapping_col = 'community_name'
+        planned_hh_col = 'Planned HH'
+        
+        with map_col1:
+            st.metric("Total LGAs", COMMUNITY_DF[lga_mapping_col].nunique())
+        with map_col2:
+            st.metric("Total Wards", COMMUNITY_DF[ward_mapping_col].nunique())
+        with map_col3:
+            st.metric("Total Communities", len(COMMUNITY_DF))
+        with map_col4:
+            st.metric("Total Planned HH", COMMUNITY_DF[planned_hh_col].sum())
+        
+        # Display the community mapping table with styling
+        st.dataframe(
+            COMMUNITY_DF,
+            use_container_width=True,
+            height=400,
+            hide_index=True,
+            column_config={
+                lga_mapping_col: st.column_config.TextColumn("LGA", width="medium"),
+                ward_mapping_col: st.column_config.TextColumn("Ward", width="medium"),
+                community_mapping_col: st.column_config.TextColumn("Community Name", width="large"),
+                code_mapping_col: st.column_config.TextColumn("Community Code", width="small"),
+                planned_hh_col: st.column_config.NumberColumn("Planned HH", width="small", format="%d")
+            }
+        )
+    except Exception as e:
+        st.error(f"❌ Error displaying community mapping: {e}")
+        st.info(f"Available columns: {', '.join(COMMUNITY_DF.columns.tolist())}")
+        # Show the dataframe anyway without special formatting
+        st.dataframe(COMMUNITY_DF, use_container_width=True, height=400)
     
     st.markdown("<br>", unsafe_allow_html=True)
     
