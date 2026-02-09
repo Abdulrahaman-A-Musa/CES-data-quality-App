@@ -21,13 +21,14 @@ ADMIN_USERNAME = "Admin"
 
 # LGA username to LGA name mapping (no passwords needed)
 LGA_CREDENTIALS = {
-    "ingawa": "Ingawa",
-    "kankara": "Kankara",
-    "kankia": "Kankia",
-    "mani": "Mani",
-    "musawa": "Musawa",
-    "rimi": "Rimi",
+    "bade": "Bade",
+    "fika": "Fika",
+    "fune": "Fune",
+    "gujba": "Gujba",
+    "gulani": "Gulani",
+    "nguru": "Nguru",
 }
+
 
 KOBO_DATA_URL = "https://kf.kobotoolbox.org/api/v2/assets/aAmQuJy6no2vnBwpLMhEfi/export-settings/estqKb5ndVV5LwnAsVBxELr/data.xlsx"
 
@@ -67,6 +68,8 @@ COMMUNITY_DF.columns = COMMUNITY_DF.columns.str.strip()
 COMMUNITY_CODE_TO_NAME = dict(zip(COMMUNITY_DF['community_name'].astype(str), COMMUNITY_DF['Q4. Community Name']))
 COMMUNITY_NAME_TO_CODE = dict(zip(COMMUNITY_DF['Q4. Community Name'], COMMUNITY_DF['community_name'].astype(str)))
 COMMUNITY_PLANNED_HH = dict(zip(COMMUNITY_DF['community_name'].astype(str), COMMUNITY_DF['Planned HH']))
+# Also create mapping by name for flexibility
+COMMUNITY_NAME_TO_PLANNED_HH = dict(zip(COMMUNITY_DF['Q4. Community Name'], COMMUNITY_DF['Planned HH']))
 
 # ---------------- CUSTOM CSS STYLING ----------------
 st.markdown("""
@@ -1277,7 +1280,7 @@ def login_page():
             - Username: `Admin`
             
             **LGA Users (use lowercase):**
-            - 'bade', 'fika','fune', 'gujba', 'gulani','nguru'
+            - `bade`, `fika`, `fune`, `gujba`, `gulani`, `nguru`
             
             """)
         
@@ -1564,11 +1567,27 @@ def run_dashboard():
                 
                 for community_code in ward_df[q4_col].unique():
                     if pd.notna(community_code):
-                        # Get community name from mapping
-                        community_name = COMMUNITY_CODE_TO_NAME.get(str(community_code), str(community_code))
+                        community_code_str = str(community_code)
                         
-                        # Get planned HH
-                        planned_hh = COMMUNITY_PLANNED_HH.get(str(community_code), 0)
+                        # Try to get community name from mapping (if data has codes)
+                        # If not found, assume the data already has the name
+                        if community_code_str in COMMUNITY_CODE_TO_NAME:
+                            # Data contains code, get the name
+                            community_name = COMMUNITY_CODE_TO_NAME[community_code_str]
+                            lookup_key = community_code_str
+                        elif community_code_str in COMMUNITY_NAME_TO_CODE:
+                            # Data contains name, use it directly
+                            community_name = community_code_str
+                            lookup_key = COMMUNITY_NAME_TO_CODE[community_code_str]
+                        else:
+                            # Unknown community, use as-is
+                            community_name = community_code_str
+                            lookup_key = community_code_str
+                        
+                        # Get planned HH (try by code first, then by name)
+                        planned_hh = COMMUNITY_PLANNED_HH.get(lookup_key, 0)
+                        if planned_hh == 0:
+                            planned_hh = COMMUNITY_NAME_TO_PLANNED_HH.get(community_name, 0)
                         
                         # Count reached HH (excluding "Not Approved")
                         reached_hh = len(ward_df[ward_df[q4_col] == community_code])
@@ -1614,7 +1633,7 @@ def run_dashboard():
             with exp_col2:
                 st.metric("Total Reached HH", f"{total_reached:,}")
             with exp_col3:
-                st.metric("Overall Coverage", f"{int(round(overall_coverage, 0))}%")
+                st.metric("Overall Coverage", f"{overall_coverage:.1f}%")
             with exp_col4:
                 st.metric("Communities @ Target", f"{communities_met_target}/{len(explorer_df)}")
             
