@@ -5,7 +5,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from io import BytesIO
+from io import BytesIO, StringIO
 import requests
 
 # ---------------- PAGE CONFIGURATION ----------------
@@ -33,37 +33,35 @@ LGA_CREDENTIALS = {
 KOBO_DATA_URL = "https://kf.kobotoolbox.org/api/v2/assets/aAmQuJy6no2vnBwpLMhEfi/export-settings/estqKb5ndVV5LwnAsVBxELr/data.xlsx"
 
 # ---------------- COMMUNITY MAPPING DATA ----------------
-# Create community mapping data as a list of dictionaries for better reliability
-COMMUNITY_DATA = [
-    {"LGA": "Bade", "Ward": "Dagona", "Community": "Mada Muza", "Code": "110111", "Planned_HH": 64},
-    {"LGA": "Bade", "Ward": "Dagona", "Community": "Karin Kwayi", "Code": "110112", "Planned_HH": 60},
-    {"LGA": "Bade", "Ward": "Gwio Kura", "Community": "Gankire Ardo Umaru", "Code": "110121", "Planned_HH": 71},
-    {"LGA": "Bade", "Ward": "Gwio Kura", "Community": "Ngeljabe Maigari Baru", "Code": "110122", "Planned_HH": 70},
-    {"LGA": "Fika", "Ward": "Fika Anze", "Community": "Police Barracks", "Code": "110211", "Planned_HH": 47},
-    {"LGA": "Fika", "Ward": "Fika Anze", "Community": "Biti Street", "Code": "110212", "Planned_HH": 40},
-    {"LGA": "Fika", "Ward": "Garu", "Community": "Jauro Wambi", "Code": "110221", "Planned_HH": 41},
-    {"LGA": "Fika", "Ward": "Garu", "Community": "Seminti Anguwan Alhassan", "Code": "110222", "Planned_HH": 50},
-    {"LGA": "Fune", "Ward": "Alagarno", "Community": "Chidol Jauro Abbati", "Code": "110311", "Planned_HH": 40},
-    {"LGA": "Fune", "Ward": "Alagarno", "Community": "Katafuna", "Code": "110312", "Planned_HH": 40},
-    {"LGA": "Fune", "Ward": "Borno Kiji", "Community": "Alhaji Kare", "Code": "110321", "Planned_HH": 39},
-    {"LGA": "Fune", "Ward": "Borno Kiji", "Community": "Daurawa", "Code": "110322", "Planned_HH": 50},
-    {"LGA": "Gujba", "Ward": "Buni Gari", "Community": "Bulama Yerima", "Code": "110411", "Planned_HH": 63},
-    {"LGA": "Gujba", "Ward": "Buni Gari", "Community": "Bulabulin", "Code": "110412", "Planned_HH": 77},
-    {"LGA": "Gujba", "Ward": "Buni Yadi", "Community": "Malari", "Code": "110421", "Planned_HH": 65},
-    {"LGA": "Gujba", "Ward": "Buni Yadi", "Community": "Isa Mai Lalle", "Code": "110422", "Planned_HH": 80},
-    {"LGA": "Gulani", "Ward": "Bara", "Community": "Anguwan Aduwa", "Code": "110511", "Planned_HH": 72},
-    {"LGA": "Gulani", "Ward": "Bara", "Community": "Jauro Bala", "Code": "110512", "Planned_HH": 60},
-    {"LGA": "Gulani", "Ward": "Bumsa", "Community": "Korofi", "Code": "110521", "Planned_HH": 67},
-    {"LGA": "Gulani", "Ward": "Bumsa", "Community": "Lamido_Julili", "Code": "110522", "Planned_HH": 80},
-    {"LGA": "Nguru", "Ward": "Afunori", "Community": "Askema", "Code": "110611", "Planned_HH": 59},
-    {"LGA": "Nguru", "Ward": "Afunori", "Community": "Kurnawa", "Code": "110612", "Planned_HH": 66},
-    {"LGA": "Nguru", "Ward": "Bulanguwa", "Community": "Kwalle Anguwar Arewa", "Code": "110621", "Planned_HH": 64},
-    {"LGA": "Nguru", "Ward": "Bulanguwa", "Community": "Bilalaam Hausawa", "Code": "110622", "Planned_HH": 76},
-]
+COMMUNITY_MAPPING_DATA = """Q2. Local Government Area	Q3.Ward	Q4. Community Name	community_name	Planned HH
+Bade	Dagona	Mada Muza	110111	64
+Bade	Dagona	Karin Kwayi	110112	60
+Bade	Gwio Kura	Gankire Ardo Umaru	110121	71
+Bade	Gwio Kura	Ngeljabe Maigari Baru	110122	70
+Fika	Fika Anze	Police Barracks	110211	47
+Fika	Fika Anze	Biti Street	110212	40
+Fika	Garu	Jauro Wambi	110221	41
+Fika	Garu	Seminti Anguwan Alhassan	110222	50
+Fune	Alagarno	Chidol Jauro Abbati	110311	40
+Fune	Alagarno	Katafuna	110312	40
+Fune	Borno Kiji	Alhaji Kare	110321	39
+Fune	Borno Kiji	Daurawa	110322	50
+Gujba	Buni Gari	Bulama Yerima	110411	63
+Gujba	Buni Gari	Bulabulin	110412	77
+Gujba	Buni Yadi	Malari	110421	65
+Gujba	Buni Yadi	Isa Mai Lalle	110422	80
+Gulani	Bara	Anguwan Aduwa	110511	72
+Gulani	Bara	Jauro Bala	110512	60
+Gulani	Bumsa	Korofi	110521	67
+Gulani	Bumsa	Lamido_Julili	110522	80
+Nguru	Afunori	Askema	110611	59
+Nguru	Afunori	Kurnawa	110612	66
+Nguru	Bulanguwa	Kwalle Anguwar Arewa	110621	64
+Nguru	Bulanguwa	Bilalaam Hausawa	110622	76"""
 
-# Create DataFrame from list
-COMMUNITY_DF = pd.DataFrame(COMMUNITY_DATA)
-COMMUNITY_DF.columns = ['Q2. Local Government Area', 'Q3.Ward', 'Q4. Community Name', 'community_name', 'Planned HH']
+# Parse community mapping data
+COMMUNITY_DF = pd.read_csv(StringIO(COMMUNITY_MAPPING_DATA), sep='\t')
+COMMUNITY_DF.columns = COMMUNITY_DF.columns.str.strip()
 
 # Create mapping dictionaries
 COMMUNITY_CODE_TO_NAME = dict(zip(COMMUNITY_DF['community_name'].astype(str), COMMUNITY_DF['Q4. Community Name']))
