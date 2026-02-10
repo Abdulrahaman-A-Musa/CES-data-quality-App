@@ -1057,6 +1057,45 @@ def perform_qc_checks(df, child_df=None):
                                 'Row Index': idx
                             })
         
+        # Check for Repetitive Selection of Child (same child name AND age with same _submission__uuid)
+        if age_col and '_submission__uuid' in child_df.columns:
+            # Group by _submission__uuid and check for duplicate child entries (name + age)
+            for submission_uuid, group in child_df.groupby('_submission__uuid'):
+                # Collect full Q88 text entries (name + age combination)
+                child_entries = []
+                for idx, row in group.iterrows():
+                    age_text = str(row.get(age_col, '')).strip()
+                    if age_text and age_text != 'nan' and age_text != 'N/A':
+                        child_entries.append((idx, age_text))
+                
+                # Check for exact duplicate entries
+                entry_counts = {}
+                for idx, age_text in child_entries:
+                    # Use the full text as key (case-insensitive for comparison)
+                    entry_key = age_text.lower().strip()
+                    if entry_key not in entry_counts:
+                        entry_counts[entry_key] = []
+                    entry_counts[entry_key].append((idx, age_text))
+                
+                # Flag exact duplicates (same name AND same age)
+                for entry_key, records in entry_counts.items():
+                    if len(records) > 1:
+                        # This exact entry (name + age) appears multiple times in the same household
+                        parent_info = parent_lookup.get(submission_uuid, {'LGA': 'N/A', 'Ward': 'N/A', 'Community': 'N/A'})
+                        for idx, age_text in records:
+                            row = child_df.loc[idx]
+                            qc_issues.append({
+                                'LGA': parent_info['LGA'],
+                                'Ward': parent_info['Ward'],
+                                'Community': parent_info['Community'],
+                                'Unique HH ID': parent_info.get('Unique HH ID', 'N/A'),
+                                'Enumerator': parent_info.get('Enumerator', 'N/A'),
+                                'Validation Status': parent_info.get('Validation Status', 'N/A'),
+                                'Issue Type': 'Repetitive selection of child',
+                                'Description': f'Exact duplicate child entry appears {len(records)} times in same household: "{age_text}" (unique_code2: {row.get("unique_code2", "N/A")})',
+                                'Row Index': idx
+                            })
+        
     # QC Check 6: Duplicate unique_code (HH Duplicate)
     # Exclude records with validation status "Not Approved" from duplicate checks
     if unique_code_col:
