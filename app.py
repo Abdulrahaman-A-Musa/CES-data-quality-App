@@ -1031,6 +1031,32 @@ def perform_qc_checks(df, child_df=None):
                     'Row Index': idx
                 })
         
+        # Check for Selection of Non-Eligible Child (age > 59 months in Q88)
+        if age_col:
+            for idx, row in child_df.iterrows():
+                age_text = str(row.get(age_col, '')).strip()
+                if age_text and age_text != 'nan' and age_text != 'N/A':
+                    # Extract numeric value from text like "Khalid Ibrahim - 72 months"
+                    import re
+                    match = re.search(r'(\d+)\s*months?', age_text, re.IGNORECASE)
+                    if match:
+                        age_value = int(match.group(1))
+                        # Flag if age is outside 1-59 months range
+                        if age_value < 1 or age_value > 59:
+                            submission_uuid = row.get('_submission__uuid', 'N/A')
+                            parent_info = parent_lookup.get(submission_uuid, {'LGA': 'N/A', 'Ward': 'N/A', 'Community': 'N/A'})
+                            qc_issues.append({
+                                'LGA': parent_info['LGA'],
+                                'Ward': parent_info['Ward'],
+                                'Community': parent_info['Community'],
+                                'Unique HH ID': parent_info.get('Unique HH ID', 'N/A'),
+                                'Enumerator': parent_info.get('Enumerator', 'N/A'),
+                                'Validation Status': parent_info.get('Validation Status', 'N/A'),
+                                'Issue Type': 'Selection of non eligible child',
+                                'Description': f'Child {row.get("child_idd", "N/A")}: "{age_text}" - Age {age_value} months is outside eligible range (1-59 months) (unique_code2: {row.get("unique_code2", "N/A")})',
+                                'Row Index': idx
+                            })
+        
     # QC Check 6: Duplicate unique_code (HH Duplicate)
     # Exclude records with validation status "Not Approved" from duplicate checks
     if unique_code_col:
