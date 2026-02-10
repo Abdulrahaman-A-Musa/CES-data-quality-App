@@ -881,29 +881,37 @@ def create_timeline_chart(df):
 
 
 # ---------------- QC CHECKS FUNCTION ----------------
-def perform_qc_checks(df, child_df=None):
+def perform_qc_checks(df, child_df=None, full_df=None):
     """
     Perform comprehensive quality control checks on the dataset
     Returns a DataFrame with flagged issues by LGA, Ward, and Community
+    
+    Parameters:
+    - df: The filtered dataframe to check
+    - child_df: The child_infoo dataframe
+    - full_df: The full unfiltered dataframe (for building parent lookup)
     """
     qc_issues = []
     
     if df.empty:
         return pd.DataFrame(qc_issues)
     
-    # Find column names flexibly
-    lga_col = find_column(df, ['lgas', 'lga', 'Q2. Local Government Area', 'LGA'])
-    ward_col = find_column(df, ['wards', 'ward', 'Q3.Ward', 'Q3. Ward', 'Ward'])
-    community_col = find_column(df, ['Community Name', 'Q4. Community Name', 'community'])
-    uuid_col = find_column(df, ['_uuid', 'uuid'])
-    unique_code_col = find_column(df, ['unique_code', 'unique_code_1', 'household_code'])
-    validation_status_col = find_column(df, ['_validation_status', 'validation_status', 'Validation Status'])
-    enumerator_col = find_column(df, ['Type in your Name', 'username', 'Enumerator', 'enumerator_name', 'enumerator'])
+    # Use full_df for parent lookup if provided, otherwise use df
+    lookup_df = full_df if full_df is not None and not full_df.empty else df
     
-    # Create lookup dictionary for child records to get parent HH info
+    # Find column names flexibly
+    lga_col = find_column(lookup_df, ['lgas', 'lga', 'Q2. Local Government Area', 'LGA'])
+    ward_col = find_column(lookup_df, ['wards', 'ward', 'Q3.Ward', 'Q3. Ward', 'Ward'])
+    community_col = find_column(lookup_df, ['Community Name', 'Q4. Community Name', 'community'])
+    uuid_col = find_column(lookup_df, ['_uuid', 'uuid'])
+    unique_code_col = find_column(lookup_df, ['unique_code', 'unique_code_1', 'household_code'])
+    validation_status_col = find_column(lookup_df, ['_validation_status', 'validation_status', 'Validation Status'])
+    enumerator_col = find_column(lookup_df, ['Type in your Name', 'username', 'Enumerator', 'enumerator_name', 'enumerator'])
+    
+    # Create lookup dictionary for child records to get parent HH info from FULL dataset
     parent_lookup = {}
     if uuid_col:
-        for idx, row in df.iterrows():
+        for idx, row in lookup_df.iterrows():
             parent_lookup[row[uuid_col]] = {
                 'LGA': row.get(lga_col, 'N/A') if lga_col else 'N/A',
                 'Ward': row.get(ward_col, 'N/A') if ward_col else 'N/A',
@@ -912,6 +920,15 @@ def perform_qc_checks(df, child_df=None):
                 'Validation Status': row.get(validation_status_col, 'N/A') if validation_status_col else 'N/A',
                 'Enumerator': row.get(enumerator_col, 'N/A') if enumerator_col else 'N/A'
             }
+    
+    # Now use df (filtered) for column lookups in QC checks
+    lga_col = find_column(df, ['lgas', 'lga', 'Q2. Local Government Area', 'LGA'])
+    ward_col = find_column(df, ['wards', 'ward', 'Q3.Ward', 'Q3. Ward', 'Ward'])
+    community_col = find_column(df, ['Community Name', 'Q4. Community Name', 'community'])
+    uuid_col = find_column(df, ['_uuid', 'uuid'])
+    unique_code_col = find_column(df, ['unique_code', 'unique_code_1', 'household_code'])
+    validation_status_col = find_column(df, ['_validation_status', 'validation_status', 'Validation Status'])
+    enumerator_col = find_column(df, ['Type in your Name', 'username', 'Enumerator', 'enumerator_name', 'enumerator'])
     
     # QC Check 1: Q22 > Q13 (Years living > Age of HH Head)
     q22_col = find_column(df, ['Q22. How long have you been living continuously in ${community_confirm}', 
@@ -1595,7 +1612,7 @@ def run_dashboard():
     
     # Perform QC checks - pass main sheet and child_infoo sheet
     child_infoo_df = sheets_dict.get('child_infoo', pd.DataFrame()) if sheets_dict else pd.DataFrame()
-    qc_results = perform_qc_checks(filtered_df, child_df=child_infoo_df)
+    qc_results = perform_qc_checks(filtered_df, child_df=child_infoo_df, full_df=df)
     
     if not qc_results.empty:
         # Summary metrics
