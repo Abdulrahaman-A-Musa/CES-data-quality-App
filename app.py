@@ -1078,40 +1078,56 @@ def perform_qc_checks(df, child_df=None, full_df=None):
         if age_col and '_submission__uuid' in child_df.columns:
             # Group by _submission__uuid and check for duplicate child entries (name + age)
             for submission_uuid, group in child_df.groupby('_submission__uuid'):
-                # Collect full Q88 text entries (name + age combination)
-                child_entries = []
+                # Skip households with only 1 child record (cannot have duplicates)
+                if len(group) < 2:
+                    continue
+                
+                # Build a dictionary to track each unique child entry (name + age)
+                child_entries_dict = {}
+                
                 for idx, row in group.iterrows():
                     age_text = str(row.get(age_col, '')).strip()
-                    if age_text and age_text != 'nan' and age_text != 'N/A':
-                        child_entries.append((idx, age_text))
+                    if not age_text or age_text.lower() in ['nan', 'n/a', '']:
+                        continue
+                    
+                    # Normalize the text for comparison (lowercase and strip extra spaces)
+                    normalized_key = ' '.join(age_text.lower().split())
+                    
+                    if normalized_key not in child_entries_dict:
+                        child_entries_dict[normalized_key] = []
+                    
+                    child_entries_dict[normalized_key].append({
+                        'idx': idx,
+                        'original_text': age_text,
+                        'unique_code2': row.get('unique_code2', 'N/A'),
+                        'child_idd': row.get('child_idd', 'N/A')
+                    })
                 
-                # Check for exact duplicate entries
-                entry_counts = {}
-                for idx, age_text in child_entries:
-                    # Use the full text as key (case-insensitive for comparison)
-                    entry_key = age_text.lower().strip()
-                    if entry_key not in entry_counts:
-                        entry_counts[entry_key] = []
-                    entry_counts[entry_key].append((idx, age_text))
-                
-                # Flag exact duplicates (same name AND same age)
-                for entry_key, records in entry_counts.items():
-                    if len(records) > 1:
-                        # This exact entry (name + age) appears multiple times in the same household
+                # Flag ONLY if same name+age appears more than once
+                for normalized_key, occurrences in child_entries_dict.items():
+                    if len(occurrences) > 1:
+                        # TRUE DUPLICATE: Same exact name and age appears multiple times
+                        # Create ONE QC issue (not one per occurrence) with all unique_code2 values
                         parent_info = parent_lookup.get(submission_uuid, {'LGA': 'N/A', 'Ward': 'N/A', 'Community': 'N/A'})
-                        for idx, age_text in records:
-                            row = child_df.loc[idx]
-                            qc_issues.append({
-                                'LGA': parent_info['LGA'],
-                                'Ward': parent_info['Ward'],
-                                'Community': parent_info['Community'],
-                                'Unique HH ID': parent_info.get('Unique HH ID', 'N/A'),
-                                'Enumerator': parent_info.get('Enumerator', 'N/A'),
-                                'Validation Status': parent_info.get('Validation Status', 'N/A'),
-                                'Issue Type': 'Repetitive selection of child',
-                                'Description': f'Exact duplicate child entry appears {len(records)} times in same household: "{age_text}" (unique_code2: {row.get("unique_code2", "N/A")})',
-                                'Row Index': idx
-                            })
+                        
+                        # Get all unique_code2 values for this duplicate
+                        unique_code2_list = [occ["unique_code2"] for occ in occurrences]
+                        unique_code2_str = ", ".join(unique_code2_list)
+                        
+                        # Use the first occurrence for row index
+                        first_occurrence = occurrences[0]
+                        
+                        qc_issues.append({
+                            'LGA': parent_info['LGA'],
+                            'Ward': parent_info['Ward'],
+                            'Community': parent_info['Community'],
+                            'Unique HH ID': parent_info.get('Unique HH ID', 'N/A'),
+                            'Enumerator': parent_info.get('Enumerator', 'N/A'),
+                            'Validation Status': parent_info.get('Validation Status', 'N/A'),
+                            'Issue Type': 'Repetitive selection of child',
+                            'Description': f'Child "{first_occurrence["original_text"]}" appears {len(occurrences)} times in same household (unique_code2: {unique_code2_str})',
+                            'Row Index': first_occurrence['idx']
+                        })
         
     # QC Check 6: Duplicate unique_code (HH Duplicate)
     # Exclude records with validation status "Not Approved" from duplicate checks
