@@ -36,11 +36,11 @@ KOBO_DATA_URL = "https://kf.kobotoolbox.org/api/v2/assets/aAmQuJy6no2vnBwpLMhEfi
 COMMUNITY_MAPPING_DATA = """Q2. Local Government Area	Q3.Ward	Q4. Community Name	community_name	Planned HH
 Bade	Dagona	Mada Muza	110111	64
 Bade	Dagona	Karin Kwayi	110112	60
-Bade	Gwio Kura	Gankire Ardo Umaru	110121	71
+Bade	Gwio Kura	Sobongari	110121	71
 Bade	Gwio Kura	Ngeljabe Maigari Baru	110122	70
 Fika	Fika Anze	Police Barracks	110211	47
 Fika	Fika Anze	Biti Street	110212	40
-Fika	Garu	Jauro Wambi	110221	41
+Fika	Garu	Garu Ward	110221	41
 Fika	Garu	Seminti Anguwan Alhassan	110222	50
 Fune	Alagarno	Chidol Jauro Abbati	110311	40
 Fune	Alagarno	Katafuna	110312	40
@@ -53,7 +53,7 @@ Gujba	Buni Yadi	Isa Mai Lalle	110422	80
 Gulani	Bara	Anguwan Aduwa	110511	72
 Gulani	Bara	Jauro Bala	110512	60
 Gulani	Bumsa	Korofi	110521	67
-Gulani	Bumsa	Lamido_Julili	110522	80
+Gulani	Bumsa	Bulama Audu	110522	80
 Nguru	Afunori	Askema	110611	59
 Nguru	Afunori	Kurnawa	110612	66
 Nguru	Bulanguwa	Kwalle Anguwar Arewa	110621	64
