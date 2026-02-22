@@ -7,6 +7,7 @@ import pandas as pd
 import plotly.express as px
 from io import BytesIO, StringIO
 import requests
+import re
 
 # ---------------- PAGE CONFIGURATION ----------------
 st.set_page_config(
@@ -29,8 +30,8 @@ LGA_CREDENTIALS = {
     "nguru": "Nguru",
 }
 
-
-KOBO_DATA_URL = "https://kf.kobotoolbox.org/api/v2/assets/aAmQuJy6no2vnBwpLMhEfi/export-settings/estqKb5ndVV5LwnAsVBxELr/data.xlsx"
+# Load KoboToolbox URL from Streamlit secrets (secure)
+KOBO_DATA_URL = st.secrets.get("KOBO_DATA_URL", "")
 
 # ---------------- COMMUNITY MAPPING DATA ----------------
 COMMUNITY_MAPPING_DATA = """Q2. Local Government Area	Q3.Ward	Q4. Community Name	community_name	Planned HH
@@ -878,6 +879,8 @@ def create_timeline_chart(df):
     fig.update_traces(line_color='#0077B5')
     fig.update_layout(height=400)
     return fig
+
+
 
 
 # ---------------- QC CHECKS FUNCTION ----------------
